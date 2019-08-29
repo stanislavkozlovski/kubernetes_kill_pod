@@ -3,28 +3,62 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"os/user"
+	"path/filepath"
+
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/tools/clientcmd"
 
 	"k8s.io/client-go/kubernetes/scheme"
 
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-func main() {
-	fmt.Println("a")
+const (
+	killCmd = `
+chroot /host bash <<"EOT"
+kill -STOP $(ps -ef | grep $(ps aux | grep $(docker ps | grep kafka | grep caas/bin/run | sed "s/ .* /|/" | cut -d"|" -f1) | awk '{print $2}') | awk '{print $2}')
+EOT
+`
+)
 
-	config, err := clientcmd.BuildConfigFromFlags("localhost:8080", "/Users/stanislav/.kube/config")
+const (
+	namespace = "pkc-vocal-albacore"
+	podName   = "kafka-0"
+)
+
+func main() {
+	user, err := user.Current()
 	if err != nil {
 		panic(err)
 	}
+	kubeConfigPath := filepath.Join(user.HomeDir, ".kube", "config")
+
+	fmt.Printf("Using kube config path: %s\n", kubeConfigPath)
+
+	kubeConfig, err := ioutil.ReadFile(kubeConfigPath)
+	if err != nil {
+		panic(err)
+	}
+
+	clientConfig, err := clientcmd.NewClientConfigFromBytes(kubeConfig)
+	if err != nil {
+		panic(err)
+	}
+
+	restconfig, err := clientConfig.ClientConfig()
+	if err != nil {
+		panic(err)
+	}
+
 	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(restconfig)
 	if err != nil {
 		panic(err)
 	}
@@ -35,33 +69,28 @@ func main() {
 	}
 	var pd corev1.Pod
 	for _, pod2 := range pods.Items {
-		fmt.Println(pod2.Namespace)
-		fmt.Println(pod2.Name)
-		if pod2.Namespace == "pkc-busy-seagull" && pod2.Name == "kafka-1" {
+		if pod2.Namespace == namespace && pod2.Name == podName {
 			pd = pod2
 		}
 
 	}
 
-	fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
 	fmt.Printf("executing remote command on %s/%s\n", pd.Namespace, pd.Name)
-	output, stdErr, err := ExecuteRemoteCommand(&pd, "ls -l")
+	output, stdErr, err := ExecuteRemoteCommand(&pd, killCmd)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Output %s stdErr %s\n", output, stdErr)
+	fmt.Printf("Output: %s\n", output)
+	fmt.Printf("Error: %s\n", stdErr)
 }
 
 // ExecuteRemoteCommand executes a remote shell command on the given pod
 // returns the output from stdout and stderr
 func ExecuteRemoteCommand(pod *corev1.Pod, command string) (string, string, error) {
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
-	loadingRules.ExplicitPath = "/Users/stanislav/.kube/config"
-	configOverrides := &clientcmd.ConfigOverrides{ClusterInfo: clientcmdapi.Cluster{Server: "localhost:8080"}}
+	configOverrides := &clientcmd.ConfigOverrides{}
 	kubeCfg := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		clientcmd.NewDefaultClientConfigLoadingRules(),
-		configOverrides ,
+		configOverrides,
 	)
 	restCfg, err := kubeCfg.ClientConfig()
 	if err != nil {

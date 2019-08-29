@@ -1,6 +1,7 @@
 module github.com/confluentinc/cc-system-tests
 
 require (
+	github.com/pkg/errors v0.8.0
 	k8s.io/api v0.0.0
 	k8s.io/apimachinery v0.0.0
 	k8s.io/apiserver v0.0.0
