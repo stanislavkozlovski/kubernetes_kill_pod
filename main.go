@@ -57,7 +57,8 @@ func main() {
 		panic(err)
 	}
 
-	// creates the clientset
+	// creat
+	Outside the cub es the clientset
 	clientset, err := kubernetes.NewForConfig(restconfig)
 	if err != nil {
 		panic(err)
@@ -71,14 +72,7 @@ func main() {
 	for _, pod2 := range pods.Items {
 		if pod2.Namespace == namespace && pod2.Name == podName {
 			pd = pod2
-		}
-
-	}
-
-	fmt.Printf("executing remote command on %s/%s\n", pd.Namespace, pd.Name)
-	output, stdErr, err := ExecuteRemoteCommand(&pd, killCmd)
-	if err != nil {
-		panic(err)
+		ic(err)
 	}
 	fmt.Printf("Output: %s\n", output)
 	fmt.Printf("Error: %s\n", stdErr)
