@@ -40,7 +40,7 @@ func main() {
 	}
 	kubeConfigPath := filepath.Join(user.HomeDir, ".kube", "config")
 
-	fmt.Printf("Using kube config path: %s\n", kubeConfigPath)
+	fmt.Printf("using kube config path: %s\n", kubeConfigPath)
 
 	kubeConfig, err := ioutil.ReadFile(kubeConfigPath)
 	if err != nil {
@@ -74,8 +74,8 @@ func main() {
 			pd = pod2
 		ic(err)
 	}
-	fmt.Printf("Output: %s\n", output)
-	fmt.Printf("Error: %s\n", stdErr)
+	fmt.Printf("output: %s\n", output)
+	fmt.Printf("error: %s\n", stdErr)
 }
 
 // ExecuteRemoteCommand executes a remote shell command on the given pod
@@ -115,7 +115,7 @@ func ExecuteRemoteCommand(pod *corev1.Pod, command string) (string, string, erro
 		Stderr: errBuf,
 	})
 	if err != nil {
-		return "", "", errors.Wrapf(err, "Failed executing command %s on %v/%v", command, pod.Namespace, pod.Name)
+		return "", "", errors.Wrapf(err, "failed executing command %s on %v/%v", command, pod.Namespace, pod.Name)
 	}
 
 	return outBuf.String(), errBuf.String(), nil
